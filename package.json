@@ -1,0 +1,27 @@
+{
+  "name": "song-viral-avax",
+  "version": "0.1.0",
+  "description": "Scaffold for Song Virality project with Avalanche SDK integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint . --ext .ts",
+    "test": "echo \"No tests configured\" && exit 0"
+  },
+  "keywords": ["avalanche","avax","song","virality"],
+  "author": "GODL0111",
+  "license": "MIT",
+  "dependencies": {
+    "avalanche": "^6.2.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
