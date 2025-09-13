@@ -1,1 +1,27 @@
-{\n  "name": "song-viral-avalanche-sdk",\n  "version": "1.0.0",\n  "description": "Song virality prediction with Avalanche SDK integration",\n  "main": "dist/index.js",\n  "scripts": {\n    "build": "tsc",\n    "start": "node dist/index.js",\n    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",\n    "test": "jest",\n    "lint": "eslint src/**/*.ts",\n    "clean": "rimraf dist"\n  },\n  "dependencies": {\n    "@avalanche-sdk/client": "^1.0.0",\n    "@avalanche-sdk/chainkit": "^1.0.0",\n    "@avalanche-sdk/interchain": "^1.0.0",\n    "viem": "^2.0.0",\n    "express": "^4.18.2",\n    "cors": "^2.8.5",\n    "helmet": "^7.0.0",\n    "dotenv": "^16.3.1",\n    "ws": "^8.14.2",\n    "redis": "^4.6.8"\n  },\n  "devDependencies": {\n    "@types/node": "^20.5.0",\n    "@types/express": "^4.17.17",\n    "@types/cors": "^2.8.13",\n    "@types/ws": "^8.5.5",\n    "typescript": "^5.1.6",\n    "ts-node-dev": "^2.0.0",\n    "jest": "^29.6.2",\n    "@types/jest": "^29.5.4",\n    "eslint": "^8.47.0",\n    "@typescript-eslint/parser": "^6.4.0",\n    "@typescript-eslint/eslint-plugin": "^6.4.0"\n  }\n}
+{
+  "name": "song-viral-avax",
+  "version": "0.1.0",
+  "description": "Scaffold for Song Virality project with Avalanche SDK integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint . --ext .ts",
+    "test": "echo \"No tests configured\" && exit 0"
+  },
+  "keywords": ["avalanche","avax","song","virality"],
+  "author": "GODL0111",
+  "license": "MIT",
+  "dependencies": {
+    "avalanche": "^6.2.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
