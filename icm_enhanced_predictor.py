@@ -213,5 +213,5 @@ async def run_demo():
         await asyncio.sleep(5)  # check every 5 sec
 
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     asyncio.run(run_demo())
