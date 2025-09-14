@@ -1,0 +1,400 @@
+This backup file is no longer needed and will be removed.
+import React, { useState, useEffect, useCallback } from 'react';
+import { ethers } from 'ethers';
+import './NewStyles.css';
+import { BarController, BarElement, CategoryScale, Chart, LinearScale, Title, Tooltip } from 'chart.js';
+Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, BarController);
+
+// Music notes component for animated background
+const MusicNotes = () => {
+  const notes = ['♪', '♫', '♬', '♩', '♭', '♮'];
+  const generateNotes = () => {
+    return Array.from({ length: 15 }, (_, i) => ({
+      id: i,
+      note: notes[Math.floor(Math.random() * notes.length)],
+      left: `${Math.random() * 100}%`,
+      delay: Math.random() * 10,
+      duration: 10 + Math.random() * 20
+    }));
+  };
+
+  return (
+    <div className="music-notes">
+      {generateNotes().map((item) => (
+        <div
+          key={item.id}
+          className="note"
+          style={{
+            left: item.left,
+            animationDelay: `${item.delay}s`,
+            animationDuration: `${item.duration}s`
+          }}
+        >
+          {item.note}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const initialFormData = {
+  danceability: '0.65',
+  energy: '0.75',
+  key: '5',
+  loudness: '-6.5',
+  mode: '1',
+  speechiness: '0.05',
+  acousticness: '0.15',
+  instrumentalness: '0.01',
+  liveness: '0.2',
+  valence: '0.7',
+  tempo: '125',
+  duration_ms: '210000'
+};
+
+const SongChart = ({ songData }) => {
+  const canvasRef = React.useRef(null);
+  const chartRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!songData || !canvasRef.current) return;
+    
+    const features = ['Dance', 'Energy', 'Acoustic', 'Instrumental', 'Liveness', 'Speech', 'Valence'];
+    const values = [
+      songData.danceability,
+      songData.energy,
+      songData.acousticness,
+      songData.instrumentalness,
+      songData.liveness,
+      songData.speechiness,
+      songData.valence
+    ];
+    
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
+    
+    const ctx = canvasRef.current.getContext('2d');
+    chartRef.current = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: features,
+        datasets: [{
+          label: 'Song Features',
+          data: values,
+          backgroundColor: [
+            'rgba(255, 222, 89, 0.7)',
+            'rgba(100, 108, 255, 0.7)',
+            'rgba(97, 218, 251, 0.7)',
+            'rgba(76, 175, 80, 0.7)',
+            'rgba(255, 152, 0, 0.7)',
+            'rgba(233, 30, 99, 0.7)',
+            'rgba(156, 39, 176, 0.7)'
+          ],
+          borderColor: 'rgba(255, 255, 255, 0.2)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 1,
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.7)'
+            }
+          },
+          x: {
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.7)'
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            titleFont: {
+              family: "'Poppins', sans-serif",
+              size: 14
+            },
+            bodyFont: {
+              family: "'Poppins', sans-serif",
+              size: 13
+            },
+            padding: 10,
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1
+          }
+        }
+      }
+    });
+    
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+      }
+    };
+  }, [songData]);
+
+  return (
+    <div style={{ width: '100%', height: '250px', position: 'relative' }}>
+      <canvas ref={canvasRef}></canvas>
+    </div>
+  );
+};
+
+function App() {
+  // State management
+  const [formData, setFormData] = useState(initialFormData);
+  const [prediction, setPrediction] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [wallet, setWallet] = useState({ address: "", connected: false });
+  const [tokenBalance, setTokenBalance] = useState("0");
+  const [backendStatus, setBackendStatus] = useState("checking");
+  const [backendError, setBackendError] = useState("");
+  const [notificationResponse, setNotificationResponse] = useState(null);
+
+  const fillTestData = () => {
+    setForm(exampleData);
+  };
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [wallet, setWallet] = useState({ address: '', connected: false });
+  const [tokenBalance, setTokenBalance] = useState(null);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setResult(null);
+    setNotificationResponse(null);
+    try {
+      const response = await fetch('http://localhost:5051/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...Object.fromEntries(Object.entries(form).map(([k, v]) => [k, parseFloat(v)]))
+        })
+      });
+      let debugText = '';
+      if (!response.ok) {
+        debugText = `Status: ${response.status} ${response.statusText}`;
+        throw new Error('Prediction failed. ' + debugText);
+      }
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
+        setResult(data);
+      } catch (jsonErr) {
+        setError('Invalid JSON from backend: ' + text);
+      }
+    } catch (err) {
+      setError('Error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Metamask connect logic
+  const connectWallet = async () => {
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        setWallet({ address: accounts[0], connected: true });
+      } catch (err) {
+        setWallet({ address: '', connected: false });
+        alert('Wallet connection failed');
+      }
+    } else {
+      setWallet({ address: '', connected: false });
+      alert('Metamask not found');
+    }
+  };
+
+  // Fetch token balance from contract
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!wallet.connected || !wallet.address) return;
+      try {
+        // Contract ABI and address (update with your deployed address)
+        const contractAddress = process.env.REACT_APP_CONTRACT_ADDRESS || '<YOUR_CONTRACT_ADDRESS>';
+        const abi = [
+          "function balanceOf(address) view returns (uint256)",
+          "function name() view returns (string)",
+          "function symbol() view returns (string)"
+        ];
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const contract = new ethers.Contract(contractAddress, abi, provider);
+        const bal = await contract.balanceOf(wallet.address);
+        setTokenBalance(ethers.utils.formatUnits(bal, 18));
+      } catch (err) {
+        setTokenBalance('Error');
+      }
+    };
+    fetchBalance();
+  }, [wallet]);
+
+  return (
+    <>
+  <div className="animated-bg"></div>
+      <main>
+        <div className="app-container">
+          {result && (
+            <div style={{width:'100%',marginBottom:'2rem'}}>
+              <h2 style={{textAlign:'center',marginBottom:'0.5rem',fontWeight:900,letterSpacing:'0.04em',fontSize:'2em',color:'#ffde59',textShadow:'0 2px 12px #ffde5944'}}>🎵 Your Song Feature Visualization</h2>
+              <div style={{display:'flex',alignItems:'center',gap:'1.5rem',flexDirection:'column'}}>
+                <div style={{fontWeight:700,fontSize:'1.15em',textAlign:'center',color:'#61dafb'}}>
+                  <span role="img" aria-label="user">👤</span> Your Song <span style={{fontWeight:400}}>- {wallet.address ? wallet.address : 'Unknown'}</span>
+                </div>
+                <HitSongBarChart song={getSongForChart()} />
+              </div>
+            </div>
+          )}
+          <div style={{position:'absolute',top:18,right:18,zIndex:10,display:'flex',gap:'0.5em'}}>
+            <button
+              type="button"
+              style={{
+                padding: '0.6em 1.2em',
+                borderRadius: '8px',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '1em',
+                background: backendStatus === 'connected' ? 'linear-gradient(90deg,#4caf50 60%,#61dafb 100%)' : 'linear-gradient(90deg,#ff4d4f 60%,#646cff 100%)',
+                color: '#fff',
+                boxShadow: '0 2px 8px #646cff33',
+                cursor: 'default'
+              }}
+              disabled
+            >
+              {backendStatus === 'checking' ? 'Checking backend...' : backendStatus === 'connected' ? 'Backend Connected' : 'Backend Not Connected'}
+              {backendStatus === 'disconnected' && backendError && (
+                <span style={{display:'block',marginTop:'0.3em',fontSize:'0.85em',color:'#fff',fontWeight:400}}>
+                  {backendError}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              style={{
+                padding: '0.6em 1em',
+                borderRadius: '8px',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '1em',
+                background: 'linear-gradient(90deg,#646cff 60%,#61dafb 100%)',
+                color: '#fff',
+                boxShadow: '0 2px 8px #646cff33',
+                cursor: 'pointer'
+              }}
+              onClick={checkBackend}
+            >
+              Retry
+            </button>
+          </div>
+          <div className="header">
+            <img src="https://cdn-icons-png.flaticon.com/512/727/727245.png" alt="Music" style={{width:'64px',marginBottom:'1rem',filter:'drop-shadow(0 2px 8px #646cff)'}} />
+            <h1>Music Prediction Oracle</h1>
+            <p>Predict song virality and store results on-chain. Powered by Avalanche & ML.</p>
+          </div>
+          <button className="wallet-btn" onClick={connectWallet}>
+            {wallet.connected ? 'Wallet Connected' : 'Connect Wallet'}
+          </button>
+          {wallet.connected && wallet.address && (
+            <div className="wallet-info">
+              <div style={{fontWeight:'600',fontSize:'1.08em',color:'#61dafb',marginBottom:'0.2em'}}>
+                Wallet: <span style={{fontWeight:'400'}}>{wallet.address.slice(0,6)}...{wallet.address.slice(-4)}</span>
+              </div>
+              <div style={{fontWeight:'600',fontSize:'1.08em',color:'#4caf50',marginBottom:'0.2em'}}>
+                Token Balance: <span style={{fontWeight:'400'}}>{tokenBalance !== null ? tokenBalance : 'Loading...'}</span> <span style={{color:'#61dafb',fontWeight:'700'}}>HST</span>
+              </div>
+            </div>
+          )}
+          <button type="button" className="wallet-btn" style={{marginBottom:'1rem',background:'linear-gradient(90deg,#646cff 60%,#61dafb 100%)'}} onClick={fillTestData}>
+            Test with Example Data
+          </button>
+          <form onSubmit={handleSubmit} className="prediction-form">
+            {Object.keys(initialForm).map((key) => (
+              <div key={key} className="form-group">
+                <label htmlFor={key}>{key.replace('_', ' ').replace('ms', ' (ms)')}</label>
+                <input
+                  type="number"
+                  step="any"
+                  name={key}
+                  id={key}
+                  value={form[key]}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            ))}
+            <button type="submit" disabled={loading}>
+              {loading ? 'Predicting...' : 'Predict'}
+            </button>
+          </form>
+          {error && <div className="error" style={{color:'red',margin:'1em 0',fontWeight:600}}>{error}</div>}
+          {result && (
+            <div className="result">
+              <h2 style={{marginBottom: '1rem',fontWeight:900,letterSpacing:'0.04em',fontSize:'1.5em',color:'#ffde59',textShadow:'0 2px 12px #ffde5944'}}>Prediction Result</h2>
+              <div style={{fontSize: '1.15em', wordBreak: 'break-word'}}>
+                {result.prediction !== undefined ? (
+                  <>
+                    {result.is_hit ? (
+                      <div className="result-hit"><span role="img" aria-label="trophy">🏆</span> Hit Song Predicted!</div>
+                    ) : (
+                      <div style={{fontWeight:700,color:'#ff4d4f',marginBottom:'0.5em'}}><span role="img" aria-label="star">⭐</span> Not a Hit</div>
+                    )}
+                    <strong>Virality Score:</strong> {result.prediction}<br/>
+                    {result.suggestion && <><strong>Suggestion:</strong> {result.suggestion}<br/></>}
+                  </>
+                ) : (
+                  <pre>{JSON.stringify(result, null, 2)}</pre>
+                )}
+              </div>
+              {/* Inline notification for token update and gas expenditure */}
+              {result.notification && result.notification.yes_no && notificationResponse === null && (
+                <div style={{margin:'1.5em 0',padding:'1em',border:'2px solid #61dafb',borderRadius:'12px',background:'#f8fcff',boxShadow:'0 2px 12px #61dafb33'}}>
+                  <div style={{fontWeight:700,color:'#1a237e',marginBottom:'0.5em',fontSize:'1.08em'}}>
+                    <span role="img" aria-label="info">💡</span> {result.notification.message}
+                  </div>
+                  <div style={{display:'flex',gap:'1em',justifyContent:'center'}}>
+                    <button style={{padding:'0.7em 1.5em',borderRadius:'8px',border:'none',background:'linear-gradient(90deg,#61dafb 60%,#4caf50 100%)',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:'1.08em',boxShadow:'0 2px 8px #61dafb33'}} onClick={()=>setNotificationResponse('yes')}>Yes</button>
+                    <button style={{padding:'0.7em 1.5em',borderRadius:'8px',border:'none',background:'linear-gradient(90deg,#ff4d4f 60%,#646cff 100%)',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:'1.08em',boxShadow:'0 2px 8px #ff4d4f33'}} onClick={()=>setNotificationResponse('no')}>No</button>
+                  </div>
+                </div>
+              )}
+              {notificationResponse === 'yes' && (
+                <div className="notification-success">
+                  <span className="icon-check" role="img" aria-label="success">✅</span> Token update confirmed!<br/>
+                  <span style={{fontWeight:400}}>Gas expenditure:</span> <span style={{fontWeight:700,color:'#388e3c'}}>{result.gas_expenditure}</span>
+                </div>
+              )}
+              {notificationResponse === 'no' && (
+                <div className="notification-error">
+                  <span className="icon-cross" role="img" aria-label="error">❌</span> Token update declined. No changes made.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
+    </>
+  );
+}
+
+export default App;
