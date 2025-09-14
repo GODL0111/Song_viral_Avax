@@ -950,8 +950,8 @@ def main():
     # Initialize the predictor
     predictor = SongHitPredictor()
 
-    # File path
-    file_path = r"/Users/chandan/Documents/Song_viral_Avax/datasets/spotify_tracks.csv"  #<-- Enter your file path
+    # Always use the correct file path
+    file_path = "/Users/chandan/Documents/Song_viral_Avax/datasets/spotify_tracks.csv"
 
     print("🎵 Welcome to the Song Hit Predictor! 🎵")
     print("="*50)

@@ -48,6 +48,12 @@ class AvalancheConfig:
         self.private_key = os.getenv('AVALANCHE_PRIVATE_KEY')
         self.wallet_address = os.getenv('WALLET_ADDRESS')
         self.oracle_address = os.getenv('PREDICTION_ORACLE_ADDRESS')
+
+        # Allow overriding RPC URL via environment (useful for local Anvil)
+        env_rpc = os.getenv('AVALANCHE_RPC_URL')
+        if env_rpc:
+            self.network_config = dict(self.network_config)
+            self.network_config['rpc_url'] = env_rpc
         
         # Validate required environment variables
         self._validate_config()
@@ -80,6 +86,11 @@ class AvalancheConfig:
         # Validate wallet address format
         if not Web3.is_address(self.wallet_address):
             raise ValueError("WALLET_ADDRESS must be a valid Ethereum address")
+        # Convert to checksum address for safety
+        try:
+            self.wallet_address = Web3.to_checksum_address(self.wallet_address)
+        except Exception:
+            pass
     
     def _init_web3(self):
         """Initialize Web3 connection to Avalanche network"""
@@ -130,7 +141,13 @@ class AvalancheConfig:
         """
         if not address:
             address = self.wallet_address
-            
+
+        # Ensure checksum
+        try:
+            address = Web3.to_checksum_address(address)
+        except Exception:
+            pass
+
         balance_wei = self.web3.eth.get_balance(address)
         balance_avax = self.web3.from_wei(balance_wei, 'ether')
         return float(balance_avax)

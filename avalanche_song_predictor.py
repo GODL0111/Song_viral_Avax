@@ -102,6 +102,11 @@ class AvalancheSongPredictor(SongHitPredictor):
         self.avalanche_config = AvalancheConfig(network)
         self.web3 = self.avalanche_config.get_web3()
         self.account = self.avalanche_config.get_account()
+        # Ensure we use checksum addresses for all web3 calls
+        try:
+            self.account_address = Web3.to_checksum_address(self.account.address)
+        except Exception:
+            self.account_address = self.account.address
         
         # Initialize contract
         self.contract = None
@@ -124,6 +129,11 @@ class AvalancheSongPredictor(SongHitPredictor):
             return
         
         try:
+            # Ensure oracle address is checksummed
+            try:
+                oracle_address = Web3.to_checksum_address(oracle_address)
+            except Exception:
+                pass
             self.contract = self.web3.eth.contract(
                 address=oracle_address,
                 abi=self.CONTRACT_ABI
@@ -194,10 +204,14 @@ class AvalancheSongPredictor(SongHitPredictor):
             raise ValueError("Failed to generate prediction")
         
         # Prepare blockchain storage data
-        song_id = self._generate_song_id(song_features)
-        song_hash = self._generate_song_hash(song_features)
+        song_id = int(self._generate_song_id(song_features))
+        song_hash = str(self._generate_song_hash(song_features))
         hit_probability = int(prediction_result['hit_probability'] * 10000)  # Convert to basis points
-        is_predicted_hit = prediction_result['is_hit_prediction']
+        # Ensure native Python bool/int types (avoid numpy types)
+        try:
+            is_predicted_hit = bool(int(prediction_result['is_hit_prediction']))
+        except Exception:
+            is_predicted_hit = bool(prediction_result['is_hit_prediction'])
         
         result = {
             'prediction': prediction_result,
@@ -256,7 +270,7 @@ class AvalancheSongPredictor(SongHitPredictor):
             )
             
             # Estimate gas
-            gas_estimate = function_call.estimate_gas({'from': self.account.address})
+            gas_estimate = function_call.estimate_gas({'from': self.account_address})
             gas_limit = int(gas_estimate * 1.2)  # Add 20% buffer
             
             # Get gas price
@@ -264,17 +278,28 @@ class AvalancheSongPredictor(SongHitPredictor):
             
             # Build transaction
             transaction = function_call.build_transaction({
-                'from': self.account.address,
+                'from': self.account_address,
                 'gas': gas_limit,
                 'gasPrice': gas_price,
-                'nonce': self.web3.eth.get_transaction_count(self.account.address),
+                'nonce': self.web3.eth.get_transaction_count(self.account_address),
             })
             
-            # Sign transaction
-            signed_txn = self.web3.eth.account.sign_transaction(transaction, self.account.key)
-            
-            # Send transaction
-            tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            # Sign transaction using the configured private key
+            signed_txn = self.web3.eth.account.sign_transaction(transaction, self.avalanche_config.private_key)
+
+            # Send transaction (support web3.py v5 and v6 attribute names)
+            raw_tx = getattr(signed_txn, 'rawTransaction', None) or getattr(signed_txn, 'raw_transaction', None) or getattr(signed_txn, 'raw', None)
+            if raw_tx is None:
+                raise RuntimeError("Signed transaction missing raw bytes")
+
+            # If hex string, convert to bytes
+            if isinstance(raw_tx, str):
+                if raw_tx.startswith('0x'):
+                    raw_tx = bytes.fromhex(raw_tx[2:])
+                else:
+                    raw_tx = bytes.fromhex(raw_tx)
+
+            tx_hash = self.web3.eth.send_raw_transaction(raw_tx)
             
             print(f"📤 Transaction sent: {tx_hash.hex()}")
             print("⏳ Waiting for confirmation...")
@@ -457,10 +482,29 @@ if __name__ == "__main__":
         # Initialize predictor
         predictor = AvalancheSongPredictor(network='fuji')
         
-        # Load model if available
-        if predictor.load_model("best_enhanced_song_model"):
-            print("✅ Model loaded successfully")
-        else:
+        # Load model if available - try common filenames
+        model_candidates = [
+            "best_enhanced_song_model",
+            "song_hit_model",
+            "song_hit_model_v0.2",
+            None  # fallback to default when None -> predictor.load_model()
+        ]
+
+        loaded = False
+        for name in model_candidates:
+            try:
+                if name is None:
+                    ok = predictor.load_model()
+                else:
+                    ok = predictor.load_model(name)
+                if ok:
+                    print(f"✅ Model loaded successfully (name={name or 'default'})")
+                    loaded = True
+                    break
+            except Exception:
+                continue
+
+        if not loaded:
             print("⚠️  No saved model found, using default configuration")
         
         # Run demo

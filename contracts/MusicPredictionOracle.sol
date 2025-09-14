@@ -25,6 +25,15 @@ contract MusicPredictionOracle {
     mapping(address => uint256[]) public predictorHistory;
     uint256 public nextPredictionId;
     address public owner;
+
+    // Token logic
+    mapping(address => uint256) public balances;
+    uint256 public totalSupply;
+    string public constant name = "HitSongToken";
+    string public constant symbol = "HST";
+    uint8 public constant decimals = 18;
+    uint256 public constant tokenReward = 10 * (10 ** 18); // 10 tokens per hit
+    uint256 public constant tokenPenalty = 5 * (10 ** 18); // 5 tokens burned per not-hit
     
     // Events
     event PredictionStored(
@@ -35,11 +44,14 @@ contract MusicPredictionOracle {
         bool isPredictedHit,
         string modelVersion
     );
-    
+
     event PredictionVerified(
         uint256 indexed predictionId,
         bool actualOutcome,
-        address indexed verifier
+        address indexed verifier,
+        address indexed predictor,
+        int256 tokenChange,
+        uint256 gasUsed
     );
     
     // Modifiers
@@ -115,17 +127,47 @@ contract MusicPredictionOracle {
      * @param _predictionId ID of the prediction to verify
      * @param _actualOutcome The actual outcome (true if song was a hit)
      */
-    function verifyPrediction(uint256 _predictionId, bool _actualOutcome) 
-        external 
-        onlyOwner 
-        validPrediction(_predictionId) 
+    function verifyPrediction(uint256 _predictionId, bool _actualOutcome)
+        external
+        onlyOwner
+        validPrediction(_predictionId)
     {
         require(!predictions[_predictionId].verified, "Prediction already verified");
-        
+
         predictions[_predictionId].verified = true;
         predictions[_predictionId].actualOutcome = _actualOutcome;
-        
-        emit PredictionVerified(_predictionId, _actualOutcome, msg.sender);
+
+        address predictor = predictions[_predictionId].predictor;
+        int256 tokenChange = 0;
+        uint256 startGas = gasleft();
+        if (_actualOutcome && predictions[_predictionId].isPredictedHit) {
+            // Mint tokens for correct hit prediction
+            balances[predictor] += tokenReward;
+            totalSupply += tokenReward;
+            tokenChange = int256(tokenReward);
+        } else if (!_actualOutcome && !predictions[_predictionId].isPredictedHit) {
+            // Mint tokens for correct not-hit prediction
+            balances[predictor] += tokenReward;
+            totalSupply += tokenReward;
+            tokenChange = int256(tokenReward);
+        } else {
+            // Burn tokens for incorrect prediction
+            uint256 burnAmount = tokenPenalty <= balances[predictor] ? tokenPenalty : balances[predictor];
+            balances[predictor] -= burnAmount;
+            totalSupply -= burnAmount;
+            tokenChange = -int256(burnAmount);
+        }
+        uint256 gasUsed = startGas - gasleft();
+
+        emit PredictionVerified(_predictionId, _actualOutcome, msg.sender, predictor, tokenChange, gasUsed);
+    }
+    /**
+     * @dev Get token balance for a predictor
+     * @param _predictor Address of the predictor
+     * @return Token balance
+     */
+    function balanceOf(address _predictor) external view returns (uint256) {
+        return balances[_predictor];
     }
     
     /**
